@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My CFO — The Reading Corp</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA LAYER
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const initialEmployees = {
+  jang: {
+    id: "jang", name: "J'Ang", title: "CEO", superior: null,
+    subordinates: ["mike","renee","monica","drew"],
+    budget: 20000000, personalComp: 2000000,
+    projects: [
+      { name: "Strategic Consulting", months: [333333,333333,333333,333333,333333,333333,333333,333333,333333,333333,333333,333337], po: "PO-001" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+
+  // ── FINANCE ($20M) ──────────────────────────────────────────────────────────
+  // Mike's $20M: own comp $1M + auditor $2M + Lauren $800K + Lola $500K + James $600K + Natasha $1.5M = $6.4M used, $13.6M unallocated
+  mike: {
+    id: "mike", name: "Mike", title: "Head of Finance", superior: "jang",
+    subordinates: ["lauren","lola","james","natasha"],
+    budget: 20000000, personalComp: 1000000,
+    projects: [
+      { name: "Auditor Engagement", months: Array(12).fill(Math.round(2000000/12)), po: "PO-M01" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // Lauren: no projects → budget = $0 (comp rolls to Mike)
+  lauren: {
+    id: "lauren", name: "Lauren", title: "Chief of Staff", superior: "mike",
+    subordinates: [], budget: 0, personalComp: 800000,
+    projects: Array(5).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" })),
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // Lola: no projects → budget = $0 (comp rolls to Mike)
+  lola: {
+    id: "lola", name: "Lola", title: "Head of Audit", superior: "mike",
+    subordinates: [], budget: 0, personalComp: 500000,
+    projects: Array(5).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" })),
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // James: Bloomberg $100K projects only → budget = $100K (comp rolls to Mike)
+  james: {
+    id: "james", name: "James", title: "Treasurer", superior: "mike",
+    subordinates: [], budget: 100000, personalComp: 500000,
+    projects: [
+      { name: "Bloomberg Terminals", months: Array(12).fill(Math.round(100000/12)), po: "PO-J01" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // Natasha: $1M consulting projects only → budget = $1M (comp rolls to Mike)
+  natasha: {
+    id: "natasha", name: "Natasha", title: "Controller", superior: "mike",
+    subordinates: [], budget: 1000000, personalComp: 500000,
+    projects: [
+      { name: "Consulting Contract A", months: Array(12).fill(Math.round(500000/12)), po: "PO-N01" },
+      { name: "Consulting Contract B", months: Array(12).fill(Math.round(500000/12)), po: "PO-N02" },
+      ...Array(3).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+
+  // ── HUMAN RESOURCES ($20M) ──────────────────────────────────────────────────
+  // Renee's $20M: total comp (own $1M + 5×$300K=$1.5M = $2.5M) + sub projects (5×$500K=$2.5M) = $5M used, $15M unallocated
+  renee: {
+    id: "renee", name: "Renee", title: "Head of HR", superior: "jang",
+    subordinates: ["brian","christopher","victoria","elizabeth","catherine"],
+    budget: 20000000, personalComp: 1000000,
+    projects: Array(5).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" })),
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // Each HR Director: $500K HR events only → budget = $500K (comp rolls to Renee)
+  brian: {
+    id: "brian", name: "Brian", title: "HR Director", superior: "renee",
+    subordinates: [], budget: 500000, personalComp: 300000,
+    projects: [
+      { name: "HR Events", months: Array(12).fill(Math.round(500000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  christopher: {
+    id: "christopher", name: "Christopher", title: "HR Director", superior: "renee",
+    subordinates: [], budget: 500000, personalComp: 300000,
+    projects: [
+      { name: "HR Events", months: Array(12).fill(Math.round(500000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  victoria: {
+    id: "victoria", name: "Victoria", title: "HR Director", superior: "renee",
+    subordinates: [], budget: 500000, personalComp: 300000,
+    projects: [
+      { name: "HR Events", months: Array(12).fill(Math.round(500000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  elizabeth: {
+    id: "elizabeth", name: "Elizabeth", title: "HR Director", superior: "renee",
+    subordinates: [], budget: 500000, personalComp: 300000,
+    projects: [
+      { name: "HR Events", months: Array(12).fill(Math.round(500000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  catherine: {
+    id: "catherine", name: "Catherine", title: "HR Director", superior: "renee",
+    subordinates: [], budget: 500000, personalComp: 300000,
+    projects: [
+      { name: "HR Events", months: Array(12).fill(Math.round(500000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+
+  // ── INFORMATION TECHNOLOGY ($20M) ───────────────────────────────────────────
+  // Monica's $20M: own comp $1M + 4× (comp $400K + SW/HW $1M = $1.4M) = $1M + $5.6M = $6.6M used, $13.4M unallocated
+  monica: {
+    id: "monica", name: "Monica", title: "Head of IT", superior: "jang",
+    subordinates: ["rick","nick","andrew","juliana"],
+    budget: 20000000, personalComp: 1000000,
+    projects: Array(5).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" })),
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // Each IT Director: $400K comp + $1M SW/HW → budget = $1.4M
+  rick: {
+    id: "rick", name: "Rick", title: "IT Director", superior: "monica",
+    subordinates: [], budget: 1000000, personalComp: 400000,
+    projects: [
+      { name: "Software & Hardware", months: Array(12).fill(Math.round(1000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  nick: {
+    id: "nick", name: "Nick", title: "IT Director", superior: "monica",
+    subordinates: [], budget: 1000000, personalComp: 400000,
+    projects: [
+      { name: "Software & Hardware", months: Array(12).fill(Math.round(1000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  andrew: {
+    id: "andrew", name: "Andrew", title: "IT Director", superior: "monica",
+    subordinates: [], budget: 1000000, personalComp: 400000,
+    projects: [
+      { name: "Software & Hardware", months: Array(12).fill(Math.round(1000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  juliana: {
+    id: "juliana", name: "Juliana", title: "IT Director", superior: "monica",
+    subordinates: [], budget: 1000000, personalComp: 400000,
+    projects: [
+      { name: "Software & Hardware", months: Array(12).fill(Math.round(1000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+
+  // ── REAL ESTATE ($20M) ──────────────────────────────────────────────────────
+  // Drew's $20M: own comp $1M + 4× (comp $500K + RE $2M = $2.5M) = $1M + $10M = $11M used, $9M unallocated
+  drew: {
+    id: "drew", name: "Drew", title: "Head of Real Estate", superior: "jang",
+    subordinates: ["jenna","emily","gracie","william"],
+    budget: 20000000, personalComp: 1000000,
+    projects: Array(5).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" })),
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // Each RE Director: $500K comp + $2M RE spend → budget = $2.5M
+  jenna: {
+    id: "jenna", name: "Jenna", title: "RE Director – NYC", superior: "drew",
+    subordinates: [], budget: 2000000, personalComp: 500000,
+    projects: [
+      { name: "NYC Real Estate", months: Array(12).fill(Math.round(2000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  emily: {
+    id: "emily", name: "Emily", title: "RE Director – LA", superior: "drew",
+    subordinates: [], budget: 2000000, personalComp: 500000,
+    projects: [
+      { name: "LA Real Estate", months: Array(12).fill(Math.round(2000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  gracie: {
+    id: "gracie", name: "Gracie", title: "RE Director – DC", superior: "drew",
+    subordinates: [], budget: 2000000, personalComp: 500000,
+    projects: [
+      { name: "DC Real Estate", months: Array(12).fill(Math.round(2000000/12)), po: "" },
+      ...Array(4).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+  // William: $500K comp + $1M Chicago + $1M Philly → budget = $2.5M
+  william: {
+    id: "william", name: "William", title: "RE Director – Chicago & Philadelphia", superior: "drew",
+    subordinates: [], budget: 2000000, personalComp: 500000,
+    projects: [
+      { name: "Chicago Real Estate",      months: Array(12).fill(Math.round(1000000/12)), po: "" },
+      { name: "Philadelphia Real Estate", months: Array(12).fill(Math.round(1000000/12)), po: "" },
+      ...Array(3).fill(null).map(()=>({ name:"", months: Array(12).fill(0), po:"" }))
+    ],
+    openRoles: [{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" },{ title:"", comp:0, startMonth:"" }],
+    te: { categories: [{ name:"Travel", months: Array(12).fill(0) },{ name:"Entertainment", months: Array(12).fill(0) },{ name:"Other", months: Array(12).fill(0) }] },
+    forecastAdj: {}, compChanges: {}, roleElimination: null,
+  },
+};
+
+const YTD_MONTHS = 6; // first 6 months spent
+
+const fmt = (n) => {
+  if (Math.abs(n) >= 1000000) return `$${(n/1000000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1000) return `$${(n/1000).toFixed(0)}K`;
+  return `$${Math.round(n).toLocaleString()}`;
+};
+const fmtFull = (n) => `$${Math.round(n).toLocaleString()}`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES (injected once)
+// ─────────────────────────────────────────────────────────────────────────────
+const STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:    #1B2B4B;
+  --navy2:   #243559;
+  --red:     #B81C35;
+  --red2:    #D42040;
+  --blue:    #1455A4;
+  --blue2:   #1A6AC7;
+  --page:    #F2F4F7;
+  --surface: #FFFFFF;
+  --surface2:#F7F9FC;
+  --text:    #1A2332;
+  --text2:   #3D4F6B;
+  --muted:   #7A8BA8;
+  --border:  #DDE3EC;
+  --success: #0A7C55;
+  --successbg:#E6F5EF;
+  --warning: #A05C00;
+  --warnbg:  #FFF3E0;
+  --danger:  #B81C35;
+  --dangerbg:#FDEDF0;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Barlow Condensed', sans-serif;
+  --body: 'Inter', sans-serif;
+}
+
+body { background: var(--page); color: var(--text); font-family: var(--body); }
+.app { min-height: 100vh; background: var(--page); }
+
+/* HEADER */
+.hdr {
+  background: var(--navy);
+  border-bottom: 3px solid var(--red);
+  padding: 0 28px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(27,43,75,0.18);
+}
+.hdr-inner {
+  max-width: 1440px; margin: 0 auto;
+  display: flex; align-items: center; gap: 20px;
+  height: 62px;
+}
+.logo-mark { display: flex; align-items: center; gap: 10px; }
+.logo-text {
+  font-family: var(--display); font-weight: 700; font-size: 11px;
+  letter-spacing: 2px; color: rgba(255,255,255,0.55); text-transform: uppercase;
+  line-height: 1.3;
+}
+.logo-text strong {
+  display: block; font-size: 17px; color: #FFFFFF; letter-spacing: 1px; font-weight: 800;
+}
+.hdr-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.15); margin: 0 6px; }
+.hdr-title {
+  font-family: var(--display); font-weight: 800; font-size: 24px;
+  letter-spacing: 3px; color: #FFFFFF; text-transform: uppercase;
+}
+.hdr-title span { color: #FF8FA0; }
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.hdr-time { font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.45); letter-spacing: 1px; }
+
+.btn {
+  font-family: var(--display); font-weight: 700; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 6px 14px; border-radius: 4px; cursor: pointer;
+  border: none; transition: all 0.15s;
+}
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:hover { background: var(--red2); }
+.btn-outline { background: transparent; color: rgba(255,255,255,0.75); border: 1px solid rgba(255,255,255,0.25); }
+.btn-outline:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-blue:hover { background: var(--blue2); }
+.btn-sm { padding: 4px 10px; font-size: 10px; }
+.btn-ghost { background: transparent; color: rgba(255,255,255,0.45); border: 1px solid transparent; }
+.btn-ghost:hover { color: rgba(255,255,255,0.8); }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-navy:hover { background: var(--navy2); }
+
+/* HOME */
+.home { max-width: 1440px; margin: 0 auto; padding: 52px 28px; }
+.home-hero { text-align: center; margin-bottom: 52px; }
+.home-eyebrow {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+  color: var(--blue); text-transform: uppercase; margin-bottom: 14px;
+}
+.home-headline {
+  font-family: var(--display); font-weight: 800; font-size: 60px;
+  letter-spacing: 4px; line-height: 1; text-transform: uppercase;
+  color: var(--navy); margin-bottom: 10px;
+}
+.home-headline span { color: var(--red); }
+.home-sub { font-size: 14px; color: var(--muted); }
+.home-select-wrap { max-width: 460px; margin: 0 auto; }
+.home-select-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 8px; text-align: left;
+}
+.home-select {
+  width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+  color: var(--text); font-family: var(--body); font-size: 14px;
+  padding: 12px 14px; border-radius: 6px; cursor: pointer;
+  appearance: none; outline: none; transition: border-color 0.15s;
+}
+.home-select:focus, .home-select:hover { border-color: var(--blue); }
+.home-select option { background: #fff; color: var(--text); }
+.home-go-btn { margin-top: 12px; width: 100%; font-size: 13px; padding: 13px; }
+
+/* DASHBOARD */
+.dash { max-width: 1440px; margin: 0 auto; padding: 24px 28px; }
+
+/* BREADCRUMB */
+.breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 20px;
+}
+.breadcrumb-sep { color: var(--border); }
+.breadcrumb-cur { color: var(--navy); font-weight: 600; }
+
+/* KPI STRIP */
+.kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.kpi {
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 16px 20px; position: relative; overflow: hidden;
+}
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+.kpi.blue::before { background: var(--blue); }
+.kpi.red::before { background: var(--red); }
+.kpi.green::before { background: var(--success); }
+.kpi.warn::before { background: var(--warning); }
+.kpi-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 6px;
+}
+.kpi-value { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: 0.5px; line-height: 1; color: var(--navy); }
+.kpi-value.blue { color: var(--blue); }
+.kpi-value.red { color: var(--red); }
+.kpi-value.green { color: var(--success); }
+.kpi-value.warn { color: var(--warning); }
+.kpi-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.kpi-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 10px; }
+.kpi-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+/* SECTION ACCORDION */
+.section-wrap { margin-bottom: 10px; }
+.section-hdr {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 13px 18px; cursor: pointer; user-select: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.section-hdr:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(20,85,164,0.07); }
+.section-hdr.open { border-radius: 8px 8px 0 0; border-color: var(--blue); border-bottom-color: transparent; }
+.section-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; background: var(--surface2); border: 1px solid var(--border);
+}
+.section-title {
+  font-family: var(--display); font-weight: 700; font-size: 15px;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--navy);
+}
+.section-meta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.section-chevron { color: var(--muted); font-size: 11px; margin-left: 8px; transition: transform 0.2s; }
+.section-chevron.open { transform: rotate(180deg); }
+.section-body {
+  background: var(--surface); border: 1.5px solid var(--blue);
+  border-top: none; border-radius: 0 0 8px 8px; padding: 20px;
+}
+
+/* TABLES */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase; text-align: left;
+  padding: 8px 10px; border-bottom: 1.5px solid var(--border); background: var(--surface2);
+}
+.data-table td { padding: 10px; font-size: 13px; color: var(--text2); border-bottom: 1px solid var(--border); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #EEF4FB; }
+.mono { font-family: var(--mono); }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+/* INPUTS */
+.tbl-input {
+  background: var(--surface2); border: 1.5px solid var(--border); color: var(--text);
+  font-family: var(--mono); font-size: 12px; padding: 5px 8px; border-radius: 4px;
+  width: 100%; outline: none; transition: border-color 0.15s;
+}
+.tbl-input:focus { border-color: var(--blue); background: #fff; }
+.tbl-select {
+  background: var(--surface2); border: 1.5px solid var(--border); color: var(--text);
+  font-family: var(--body); font-size: 12px; padding: 5px 8px; border-radius: 4px; outline: none;
+}
+.tbl-select:focus { border-color: var(--blue); }
+
+/* ALERTS */
+.alert { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+.alert-danger { background: var(--dangerbg); border: 1px solid #F0AABB; color: var(--danger); }
+.alert-warn { background: var(--warnbg); border: 1px solid #F0C060; color: var(--warning); }
+.alert-success { background: var(--successbg); border: 1px solid #7ECFB0; color: var(--success); }
+
+/* PILLS */
+.pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
+.pill-red { background: var(--dangerbg); color: var(--red); border: 1px solid #F0AABB; }
+.pill-blue { background: #E8F0FB; color: var(--blue); border: 1px solid #ADC5EE; }
+.pill-green { background: var(--successbg); color: var(--success); border: 1px solid #7ECFB0; }
+.pill-warn { background: var(--warnbg); color: var(--warning); border: 1px solid #F0C060; }
+
+/* SUBORDINATE ROWS */
+.sub-row { background: #EEF4FB; border-left: 3px solid var(--blue); margin-top: 8px; padding: 12px 16px; border-radius: 0 6px 6px 0; }
+.sub-row-hdr { font-family: var(--display); font-weight: 700; font-size: 13px; color: var(--blue); margin-bottom: 8px; display: flex; justify-content: space-between; }
+
+/* MONTH GRID */
+.month-grid { display: grid; grid-template-columns: repeat(12,1fr) auto; gap: 4px; align-items: center; margin-top: 6px; }
+.month-lbl { font-family: var(--mono); font-size: 8px; color: var(--muted); text-transform: uppercase; text-align: center; }
+.month-input {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--mono); font-size: 10px; padding: 4px 2px;
+  border-radius: 3px; text-align: center; outline: none; width: 100%;
+}
+.month-input:focus { border-color: var(--blue); background: #fff; }
+.month-total { font-family: var(--mono); font-size: 11px; color: var(--blue); font-weight: 600; text-align: right; white-space: nowrap; padding-left: 8px; }
+
+/* DIVIDER */
+.div-line { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* PROGRESS */
+.prog { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+/* MODAL */
+.modal-bg { position: fixed; inset: 0; background: rgba(27,43,75,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 28px; width: 480px; box-shadow: 0 20px 60px rgba(27,43,75,0.18); }
+.modal-title { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: 1px; margin-bottom: 16px; color: var(--navy); }
+.modal-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.modal-row label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: block; }
+.modal-input { width: 100%; background: var(--surface2); border: 1.5px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 8px 12px; border-radius: 6px; outline: none; }
+.modal-input:focus { border-color: var(--blue); }
+.modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .kpi-strip { grid-template-columns: repeat(2,1fr); }
+  .home-grid { grid-template-columns: repeat(2,1fr); }
+  .home-headline { font-size: 40px; }
+}
+@media (max-width: 600px) {
+  .kpi-strip { grid-template-columns: 1fr; }
+  .home-grid { grid-template-columns: 1fr; }
+}
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.label-sm { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.value-lg { font-family: var(--display); font-size: 20px; font-weight: 700; color: var(--navy); }
+.tag-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.text-green { color: var(--success); }
+.text-red { color: var(--danger); }
+.text-blue { color: var(--blue); }
+.text-warn { color: var(--warning); }
+.text-muted { color: var(--muted); }
+.mt4 { margin-top: 4px; }
+.mt8 { margin-top: 8px; }
+.mt12 { margin-top: 12px; }
+.mt16 { margin-top: 16px; }
+.mt20 { margin-top: 20px; }
+.mb8 { margin-bottom: 8px; }
+.mb12 { margin-bottom: 12px; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap8 { gap: 8px; }
+.gap12 { gap: 12px; }
+.w100 { width: 100%; }
+.over { color: var(--danger) !important; }
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getAllSubordinates(id, emps) {
+  const direct = emps[id]?.subordinates || [];
+  const all = [...direct];
+  direct.forEach(s => getAllSubordinates(s, emps).forEach(x => { if (!all.includes(x)) all.push(x); }));
+  return all;
+}
+
+function calcProjectTotal(projects) {
+  return projects.filter(p=>p.name).reduce((sum,p)=>sum+p.months.reduce((a,b)=>a+b,0),0);
+}
+function calcTETotal(te) {
+  return te.categories.reduce((sum,c)=>sum+c.months.reduce((a,b)=>a+b,0),0);
+}
+// Get a person's effective FY comp, respecting any changes their manager recorded
+// managerEmp = the employee whose compChanges we read (usually the person's superior)
+function getEffectiveComp(emp, managerEmp) {
+  const changes = (managerEmp?.compChanges)?.[emp.id] || {};
+  let comp = emp.personalComp;
+  if (changes.eliminated) {
+    const elimMonth = Number(changes.elimMonth || 12);
+    comp = (comp / 12) * elimMonth;
+  } else if (changes.newComp) {
+    const changeMonth = Number(changes.changeMonth || 1);
+    comp = (comp / 12) * (changeMonth - 1) + (Number(changes.newComp) / 12) * (12 - changeMonth + 1);
+  }
+  return comp;
+}
+
+// Own comp: personal + open roles (no sub comp)
+function calcOwnComp(emp) {
+  let total = emp.personalComp;
+  emp.openRoles.forEach(r => { if (r.title && r.comp) total += Number(r.comp); });
+  return total;
+}
+
+// Total comp a manager is responsible for: own + all direct reports (with effective comp applied)
+function calcTotalComp(emp, employees) {
+  const ownComp = calcOwnComp(emp);
+  const teamComp = emp.subordinates.reduce((s, sid) => {
+    return s + getEffectiveComp(employees[sid], emp);
+  }, 0);
+  // Also count open roles comp
+  const openRolesComp = emp.openRoles.reduce((s,r) => s + (r.title && r.comp ? Number(r.comp) : 0), 0);
+  return emp.personalComp + openRolesComp + teamComp;
+}
+
+// For backwards compat where no manager context available, fall back to own comp only
+function calcCompTotal(emp) {
+  return calcOwnComp(emp);
+}
+
+function calcSpend(emp) {
+  return calcProjectTotal(emp.projects) + calcTETotal(emp.te) + calcCompTotal(emp);
+}
+function getYTDSpend(emp) {
+  let total = 0;
+  emp.projects.filter(p=>p.name).forEach(p => {
+    for(let i=0;i<YTD_MONTHS;i++) total += p.months[i];
+  });
+  emp.te.categories.forEach(c => {
+    for(let i=0;i<YTD_MONTHS;i++) total += c.months[i];
+  });
+  total += (emp.personalComp / 12) * YTD_MONTHS;
+  return total;
+}
+function getYTDBudget(emp) { return (emp.budget / 12) * YTD_MONTHS; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function KPICard({ label, value, sub, colorClass="blue", pct=null }) {
+  const barColor = colorClass==="red"?"var(--red)":colorClass==="green"?"var(--success)":colorClass==="warn"?"var(--warning)":"var(--blue)";
+  const valueColor = colorClass==="red"?"var(--danger)":colorClass==="green"?"var(--success)":colorClass==="warn"?"var(--warning)":"var(--navy)";
+  return (
+    <div className={`kpi ${colorClass}`}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value" style={{color: valueColor}}>{value}</div>
+      {sub && <div className="kpi-sub">{sub}</div>}
+      {pct !== null && (
+        <div className="kpi-bar mt8">
+          <div className="kpi-bar-fill" style={{width:`${Math.min(pct,100)}%`, background: barColor}} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Accordion({ icon, title, meta, children, defaultOpen=false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="section-wrap">
+      <div className={`section-hdr ${open?"open":""}`} onClick={()=>setOpen(o=>!o)}>
+        <div className="section-icon">{icon}</div>
+        <div className="section-title">{title}</div>
+        {meta && <div className="section-meta">{meta}</div>}
+        <div className={`section-chevron ${open?"open":""}`}>▼</div>
+      </div>
+      {open && <div className="section-body">{children}</div>}
+    </div>
+  );
+}
+
+function MonthRow({ values, onChange, readOnly=false, label="" }) {
+  const total = values.reduce((a,b)=>a+b,0);
+  return (
+    <div>
+      {label && <div className="label-sm mt8">{label}</div>}
+      <div className="month-grid">
+        {MONTHS.map((m,i)=>(
+          <div key={m}>
+            <div className="month-lbl">{m}</div>
+            <input
+              className="month-input"
+              type="number" min="0"
+              value={values[i]||""}
+              readOnly={readOnly}
+              onChange={e=>{
+                const v=[...values];
+                v[i]=Number(e.target.value)||0;
+                onChange(v);
+              }}
+            />
+          </div>
+        ))}
+        <div className="month-total">{fmt(total)}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUDGET SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+function BudgetSection({ empId, employees, setEmployees }) {
+  const emp = employees[empId];
+  const [pendingAlloc, setPendingAlloc] = useState({ target:"", amount:"" });
+  const [submittedAlloc, setSubmittedAlloc] = useState([]);
+  const [lastSubmit, setLastSubmit] = useState(null);
+
+  const subBudgetTotal = emp.subordinates.reduce((s,sid)=>s+(employees[sid]?.budget||0),0);
+  // Manager owns total comp: own + all direct reports (comp no longer in sub budgets)
+  const ownComp = calcOwnComp(emp);
+  const teamComp = emp.subordinates.reduce((s,sid)=>s+getEffectiveComp(employees[sid],emp),0);
+  const compAssigned = ownComp + teamComp;
+  const totalAssigned = subBudgetTotal + compAssigned;
+  const remainingBudget = emp.budget - totalAssigned;
+
+  const handleSubmit = () => {
+    if (!pendingAlloc.target || !pendingAlloc.amount) return;
+    const amt = Number(pendingAlloc.amount);
+    if (amt > remainingBudget) {
+      alert(`⚠️ Insufficient budget. You only have ${fmt(remainingBudget)} remaining to allocate after compensation.`);
+      return;
+    }
+    setEmployees(prev => ({
+      ...prev,
+      [pendingAlloc.target]: { ...prev[pendingAlloc.target], budget: (prev[pendingAlloc.target]?.budget||0)+amt }
+    }));
+    const rec = { ...pendingAlloc, amount: amt };
+    setSubmittedAlloc(p=>[...p,rec]);
+    setLastSubmit(rec);
+    setPendingAlloc({ target:"", amount:"" });
+  };
+
+  const handleRecall = () => {
+    if (!lastSubmit) return;
+    setEmployees(prev => ({
+      ...prev,
+      [lastSubmit.target]: { ...prev[lastSubmit.target], budget: Math.max(0,(prev[lastSubmit.target]?.budget||0)-lastSubmit.amount) }
+    }));
+    setSubmittedAlloc(p=>p.filter((_,i)=>i!==p.length-1));
+    setLastSubmit(null);
+  };
+
+  return (
+    <div>
+      {remainingBudget < 0 && (
+        <div className="alert alert-danger">⚠ Budget over-allocated by {fmt(Math.abs(remainingBudget))}</div>
+      )}
+      <div className="kpi-strip" style={{gridTemplateColumns:"repeat(4,1fr)",marginBottom:16}}>
+        <div className="kpi blue">
+          <div className="kpi-label">Total Budget</div>
+          <div className="kpi-value">{fmt(emp.budget)}</div>
+        </div>
+        <div className="kpi warn">
+          <div className="kpi-label">Total Comp (You + Team)</div>
+          <div className="kpi-value">{fmt(compAssigned)}</div>
+          {teamComp > 0 && <div className="kpi-sub">You: {fmt(ownComp)} · Team: {fmt(teamComp)}</div>}
+        </div>
+        <div className="kpi red">
+          <div className="kpi-label">Allocated to Team</div>
+          <div className="kpi-value">{fmt(subBudgetTotal)}</div>
+        </div>
+        <div className={`kpi ${remainingBudget<0?"red":"green"}`}>
+          <div className="kpi-label">Remaining to Allocate</div>
+          <div className="kpi-value">{fmt(remainingBudget)}</div>
+        </div>
+      </div>
+
+      {emp.subordinates.length > 0 && (
+        <>
+          <div className="label-sm">Allocate Budget to Subordinate</div>
+          <div style={{display:"flex",gap:8,marginTop:6,marginBottom:16}}>
+            <select className="tbl-select" value={pendingAlloc.target} onChange={e=>setPendingAlloc(p=>({...p,target:e.target.value}))}>
+              <option value="">Select employee...</option>
+              {emp.subordinates.map(sid=>(
+                <option key={sid} value={sid}>{employees[sid]?.name} – {employees[sid]?.title}</option>
+              ))}
+            </select>
+            <input className="tbl-input" style={{width:160}} type="number" placeholder="Amount ($)" value={pendingAlloc.amount}
+              onChange={e=>setPendingAlloc(p=>({...p,amount:e.target.value}))} />
+            <button className="btn btn-blue btn-sm" onClick={handleSubmit}>Submit</button>
+            <button className="btn btn-outline btn-sm" onClick={handleRecall} disabled={!lastSubmit}>Recall Last</button>
+          </div>
+
+          <table className="data-table">
+            <thead><tr>
+              <th>Employee</th><th>Title</th><th className="text-right">Budget Allocated</th>
+              <th className="text-right">Projects & T&E</th><th className="text-right">Variance</th>
+            </tr></thead>
+            <tbody>
+              {emp.subordinates.map(sid=>{
+                const sub = employees[sid];
+                const spend = calcProjectTotal(sub.projects) + calcTETotal(sub.te);
+                const variance = sub.budget - spend;
+                return (
+                  <tr key={sid}>
+                    <td><strong>{sub.name}</strong></td>
+                    <td className="text-muted">{sub.title}</td>
+                    <td className="text-right mono">{fmt(sub.budget)}</td>
+                    <td className="text-right mono">{fmt(spend)}</td>
+                    <td className={`text-right mono ${variance<0?"text-red":"text-green"}`}>{fmt(variance)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {submittedAlloc.length > 0 && (
+        <div className="mt12">
+          <div className="label-sm">Allocation History</div>
+          {submittedAlloc.map((a,i)=>(
+            <div key={i} style={{fontSize:11,color:"var(--muted)",marginTop:4}}>
+              → {fmt(a.amount)} to {employees[a.target]?.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FORECAST SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+function ForecastSection({ empId, employees, setEmployees, currentUser }) {
+  const emp = employees[empId];
+  const [editingId, setEditingId] = useState(null);
+  const [fcastVals, setFcastVals] = useState({});
+
+  const getForecast = (id) => {
+    const e = employees[id];
+    const base = Array(12).fill(e.budget/12);
+    const adj = e.forecastAdj || {};
+    return base.map((v,i)=>v+(adj[i]||0));
+  };
+
+  const handleSaveForecast = (id) => {
+    setEmployees(prev=>({
+      ...prev,
+      [id]: { ...prev[id], forecastAdj: fcastVals[id] || {} }
+    }));
+    setEditingId(null);
+  };
+
+  const renderForecastRow = (id, canEdit) => {
+    const e = employees[id];
+    const fcast = getForecast(id);
+    const total = fcast.reduce((a,b)=>a+b,0);
+    return (
+      <div key={id} className={id===empId?"":"sub-row"} style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div>
+            <strong style={{fontSize:14}}>{e.name}</strong>
+            <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{e.title}</span>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <span className="mono" style={{fontSize:12,color:"var(--blue)"}}>{fmt(total)}</span>
+            {canEdit && editingId!==id && <button className="btn btn-outline btn-sm" onClick={()=>{setEditingId(id); setFcastVals(p=>({...p,[id]:e.forecastAdj||{}}));}}>Edit</button>}
+            {canEdit && editingId===id && <>
+              <button className="btn btn-blue btn-sm" onClick={()=>handleSaveForecast(id)}>Save</button>
+              <button className="btn btn-ghost btn-sm" onClick={()=>setEditingId(null)}>Cancel</button>
+            </>}
+          </div>
+        </div>
+        {editingId===id ? (
+          <MonthRow values={fcast} onChange={(v)=>{
+            const base=Array(12).fill(e.budget/12);
+            const adj = {};
+            v.forEach((val,i)=>{if(val-base[i]!==0) adj[i]=val-base[i];});
+            setFcastVals(p=>({...p,[id]:adj}));
+          }} />
+        ) : (
+          <div className="month-grid">
+            {MONTHS.map((m,i)=>(
+              <div key={m}>
+                <div className="month-lbl">{m}</div>
+                <div className="month-input" style={{textAlign:"center",fontSize:9,color:"var(--text2)",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:3,padding:"3px 0"}}>{fcast[i]>=1000?fmt(fcast[i]):Math.round(fcast[i])}</div>
+              </div>
+            ))}
+            <div className="month-total">{fmt(total)}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const canEditSubs = emp.subordinates.length > 0;
+  return (
+    <div>
+      <div className="label-sm mb12">My Forecast</div>
+      {renderForecastRow(empId, true)}
+      {canEditSubs && (
+        <>
+          <div className="div-line" />
+          <div className="label-sm mb12">Team Forecast</div>
+          {emp.subordinates.map(sid=>renderForecastRow(sid, true))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROJECTS SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+function ProjectsSection({ empId, employees, setEmployees }) {
+  const emp = employees[empId];
+  const totalProj = calcProjectTotal(emp.projects);
+  const over = totalProj > emp.budget;
+
+  const updateProject = (idx, field, val) => {
+    setEmployees(prev=>{
+      const projs=[...prev[empId].projects.map(p=>({...p,months:[...p.months]}))];
+      projs[idx]={...projs[idx],[field]:val};
+      return {...prev,[empId]:{...prev[empId],projects:projs}};
+    });
+  };
+  const updateMonth = (projIdx, monthIdx, val) => {
+    setEmployees(prev=>{
+      const projs=[...prev[empId].projects.map(p=>({...p,months:[...p.months]}))];
+      projs[projIdx].months[monthIdx]=Number(val)||0;
+      return {...prev,[empId]:{...prev[empId],projects:projs}};
+    });
+  };
+
+  return (
+    <div>
+      {over && <div className="alert alert-danger">⚠ Project spend {fmt(totalProj)} exceeds budget {fmt(emp.budget)}</div>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div className="label-sm">My Projects (up to 5)</div>
+        <span className={`mono ${over?"text-red":"text-blue"}`} style={{fontSize:12}}>Total: {fmt(totalProj)}</span>
+      </div>
+
+      {emp.projects.map((proj,i)=>(
+        <div key={i} style={{marginBottom:16,background:"var(--surface2)",borderRadius:6,padding:12,border:"1px solid var(--border)"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 160px 140px",gap:8,marginBottom:8}}>
+            <div>
+              <div className="label-sm">Project Name</div>
+              <input className="tbl-input" placeholder={`Project ${i+1}`} value={proj.name}
+                onChange={e=>updateProject(i,"name",e.target.value)} />
+            </div>
+            <div>
+              <div className="label-sm">PO / Invoice #</div>
+              <input className="tbl-input" placeholder="PO-XXXX" value={proj.po}
+                onChange={e=>updateProject(i,"po",e.target.value)} />
+            </div>
+            <div>
+              <div className="label-sm">Total</div>
+              <div className="mono" style={{fontSize:14,color:"var(--blue)",padding:"4px 0"}}>{fmt(proj.months.reduce((a,b)=>a+b,0))}</div>
+            </div>
+          </div>
+          {proj.name && (
+            <MonthRow values={proj.months} onChange={(v)=>{
+              setEmployees(prev=>{
+                const projs=[...prev[empId].projects.map(p=>({...p,months:[...p.months]}))];
+                projs[i].months=v;
+                return {...prev,[empId]:{...prev[empId],projects:projs}};
+              });
+            }} />
+          )}
+        </div>
+      ))}
+
+      {emp.subordinates.length > 0 && (
+        <>
+          <div className="div-line" />
+          <div className="label-sm mb12">Team Projects</div>
+          {emp.subordinates.map(sid=>{
+            const sub=employees[sid];
+            const subTotal=calcProjectTotal(sub.projects);
+            return (
+              <div key={sid} className="sub-row" style={{marginBottom:8}}>
+                <div className="sub-row-hdr">
+                  <span>{sub.name} – {sub.title}</span>
+                  <span className="mono" style={{fontSize:11}}>{fmt(subTotal)}</span>
+                </div>
+                {sub.projects.filter(p=>p.name).map((p,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--text)",marginBottom:4}}>
+                    <span>{p.name} {p.po&&<span className="pill pill-blue">{p.po}</span>}</span>
+                    <span className="mono">{fmt(p.months.reduce((a,b)=>a+b,0))}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEAM / COMPENSATION SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+function TeamSection({ empId, employees, setEmployees }) {
+  const emp = employees[empId];
+
+  const updateCompChange = (targetId, field, val) => {
+    setEmployees(prev=>({
+      ...prev,
+      [empId]: {
+        ...prev[empId],
+        compChanges: { ...prev[empId].compChanges, [targetId]: { ...(prev[empId].compChanges?.[targetId]||{}), [field]: val } }
+      }
+    }));
+  };
+  const updateOpenRole = (idx, field, val) => {
+    setEmployees(prev=>{
+      const roles=[...prev[empId].openRoles];
+      roles[idx]={...roles[idx],[field]:val};
+      return {...prev,[empId]:{...prev[empId],openRoles:roles}};
+    });
+  };
+
+  // Use top-level getEffectiveComp with this manager's compChanges baked into emp
+  const totalTeamComp = emp.subordinates.reduce((s,sid)=>s+getEffectiveComp(employees[sid],emp),0)
+    + emp.personalComp
+    + emp.openRoles.reduce((s,r)=>s+(r.title?Number(r.comp||0):0),0);
+
+  const canSeeDeep = empId === "jang";
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+        <div className="label-sm">Team Compensation</div>
+        <span className="mono text-blue" style={{fontSize:12}}>Total FY Comp: {fmt(totalTeamComp)}</span>
+      </div>
+
+      {/* Self */}
+      <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:6,padding:12,marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <strong style={{fontSize:14}}>{emp.name}</strong>
+            <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{emp.title} (You)</span>
+          </div>
+          <span className="mono text-blue" style={{fontSize:13}}>{fmt(emp.personalComp)}</span>
+        </div>
+      </div>
+
+      {/* Subordinates */}
+      {emp.subordinates.map(sid=>{
+        const sub=employees[sid];
+        const changes=emp.compChanges?.[sid]||{};
+        const effComp=getEffectiveComp(employees[sid],emp);
+        return (
+          <div key={sid} style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:6,padding:12,marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <strong style={{fontSize:14}}>{sub.name}</strong>
+                <span style={{fontSize:11,color:"var(--muted)",marginLeft:8}}>{sub.title}</span>
+                {changes.eliminated && <span className="pill pill-red" style={{marginLeft:8}}>Eliminated M{changes.elimMonth}</span>}
+                {changes.newComp && !changes.eliminated && <span className="pill pill-warn" style={{marginLeft:8}}>Comp Change M{changes.changeMonth}</span>}
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div className="mono" style={{fontSize:13,color:changes.eliminated?"var(--danger)":"var(--blue2)"}}>{fmt(effComp)}</div>
+                <div style={{fontSize:10,color:"var(--muted)"}}>base: {fmt(sub.personalComp)}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+              <label style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"var(--muted)",cursor:"pointer"}}>
+                <input type="checkbox" checked={!!changes.eliminated}
+                  onChange={e=>updateCompChange(sid,"eliminated",e.target.checked)} />
+                Eliminate Role
+              </label>
+              {changes.eliminated && (
+                <select className="tbl-select" style={{fontSize:11}} value={changes.elimMonth||"12"}
+                  onChange={e=>updateCompChange(sid,"elimMonth",e.target.value)}>
+                  {MONTHS.map((m,i)=><option key={i} value={i+1}>End {m}</option>)}
+                </select>
+              )}
+              {!changes.eliminated && (
+                <>
+                  <span style={{fontSize:11,color:"var(--muted)"}}>Raise/Promo:</span>
+                  <input className="tbl-input" style={{width:110,fontSize:11}} type="number" placeholder="New salary"
+                    value={changes.newComp||""} onChange={e=>updateCompChange(sid,"newComp",Number(e.target.value))} />
+                  <select className="tbl-select" style={{fontSize:11}} value={changes.changeMonth||"1"}
+                    onChange={e=>updateCompChange(sid,"changeMonth",e.target.value)}>
+                    {MONTHS.map((m,i)=><option key={i} value={i+1}>Eff. {m}</option>)}
+                  </select>
+                </>
+              )}
+            </div>
+            {/* Sub's subordinates if CEO */}
+            {canSeeDeep && sub.subordinates.length>0 && (
+              <div style={{marginTop:8,paddingLeft:12,borderLeft:"1px solid var(--border)"}}>
+                {sub.subordinates.map(gsid=>{
+                  const gs=employees[gsid];
+                  return (
+                    <div key={gsid} style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginBottom:4}}>
+                      <span>{gs.name} – {gs.title}</span>
+                      <span className="mono">{fmt(gs.personalComp)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Open roles */}
+      <div className="div-line" />
+      <div className="label-sm mb12">Open Roles (up to 3)</div>
+      {emp.openRoles.map((r,i)=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 140px 140px",gap:8,marginBottom:8}}>
+          <input className="tbl-input" placeholder={`Open Role ${i+1} Title`} value={r.title}
+            onChange={e=>updateOpenRole(i,"title",e.target.value)} />
+          <input className="tbl-input" type="number" placeholder="Annual Comp ($)" value={r.comp||""}
+            onChange={e=>updateOpenRole(i,"comp",e.target.value)} />
+          <select className="tbl-select" value={r.startMonth||""} onChange={e=>updateOpenRole(i,"startMonth",e.target.value)}>
+            <option value="">Start Month</option>
+            {MONTHS.map((m,mi)=><option key={mi} value={mi+1}>{m}</option>)}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T&E SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+function TESection({ empId, employees, setEmployees }) {
+  const emp = employees[empId];
+  const totalTE = calcTETotal(emp.te);
+  const over = totalTE + calcProjectTotal(emp.projects) + calcOwnComp(emp) > emp.budget;
+
+  const updateTE = (catIdx, monthIdx, val) => {
+    setEmployees(prev=>{
+      const cats=prev[empId].te.categories.map(c=>({...c,months:[...c.months]}));
+      cats[catIdx].months[monthIdx]=Number(val)||0;
+      return {...prev,[empId]:{...prev[empId],te:{categories:cats}}};
+    });
+  };
+
+  return (
+    <div>
+      {over && <div className="alert alert-warn">⚠ Total spend (projects + comp + T&E) exceeds budget</div>}
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+        <div className="label-sm">My Travel & Expenses</div>
+        <span className="mono text-blue" style={{fontSize:12}}>Total: {fmt(totalTE)}</span>
+      </div>
+      {emp.te.categories.map((cat,ci)=>(
+        <div key={ci} style={{marginBottom:12,background:"var(--surface2)",borderRadius:6,padding:12,border:"1px solid var(--border)"}}>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>{cat.name}</div>
+          <MonthRow values={cat.months} onChange={(v)=>{
+            setEmployees(prev=>{
+              const cats=prev[empId].te.categories.map(c=>({...c,months:[...c.months]}));
+              cats[ci].months=v;
+              return {...prev,[empId]:{...prev[empId],te:{categories:cats}}};
+            });
+          }} />
+        </div>
+      ))}
+
+      {emp.subordinates.length>0 && (
+        <>
+          <div className="div-line" />
+          <div className="label-sm mb12">Team T&E</div>
+          {emp.subordinates.map(sid=>{
+            const sub=employees[sid];
+            const subTE=calcTETotal(sub.te);
+            return (
+              <div key={sid} className="sub-row" style={{marginBottom:8}}>
+                <div className="sub-row-hdr">
+                  <span>{sub.name} – {sub.title}</span>
+                  <span className="mono" style={{fontSize:11}}>{fmt(subTE)}</span>
+                </div>
+                {sub.te.categories.map((cat,ci)=>{
+                  const catTotal=cat.months.reduce((a,b)=>a+b,0);
+                  if(!catTotal) return null;
+                  return (
+                    <div key={ci} style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginBottom:4}}>
+                      <span>{cat.name}</span><span className="mono">{fmt(catTotal)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMPLOYEE DASHBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+function EmployeeDashboard({ empId, employees, setEmployees, onBack }) {
+  const emp = employees[empId];
+  const ytdSpend = getYTDSpend(emp);
+  const ytdBudget = getYTDBudget(emp);
+  const totalSpend = calcSpend(emp);
+  const forecast = emp.budget;
+  const ytdPct = ytdBudget > 0 ? (ytdSpend/ytdBudget)*100 : 0;
+  const fyPct = emp.budget > 0 ? (totalSpend/emp.budget)*100 : 0;
+
+  // Sub budgets = projects/T&E only; team comp rolls up to this manager
+  const subBudgets = emp.subordinates.reduce((s,sid)=>s+(employees[sid]?.budget||0),0);
+  const ownComp = calcOwnComp(emp);
+  const teamComp = emp.subordinates.reduce((s,sid)=>s+getEffectiveComp(employees[sid],emp),0);
+  const totalComp = ownComp + teamComp;
+  const totalCommitted = totalComp + subBudgets + calcProjectTotal(emp.projects) + calcTETotal(emp.te);
+  const remainingBudget = emp.budget - totalCommitted;
+
+  return (
+    <div className="dash">
+      <div className="breadcrumb">
+        <span style={{cursor:"pointer",color:"var(--blue)"}} onClick={onBack}>⌂ Home</span>
+        <span className="breadcrumb-sep">›</span>
+        <span className="breadcrumb-cur">{emp.name} — {emp.title}</span>
+      </div>
+
+      {/* KPI STRIP */}
+      <div className="kpi-strip">
+        <KPICard label="YTD Allocated" value={fmt(ytdSpend)} sub={`of ${fmt(ytdBudget)} YTD Budget`} colorClass={ytdPct>100?"red":ytdPct>85?"warn":"blue"} pct={ytdPct} />
+        <KPICard label="YTD Budget" value={fmt(ytdBudget)} sub={`${YTD_MONTHS} months of FY Budget`} colorClass="blue" />
+        <KPICard label="Full Year Budget" value={fmt(emp.budget)} sub={emp.subordinates.length>0?`${fmt(subBudgets)} in project budgets to team`:""} colorClass="blue" />
+        <KPICard label="Unallocated" value={fmt(remainingBudget)} sub={`of ${fmt(emp.budget)} FY Budget`} colorClass={remainingBudget<0?"red":"green"} />
+      </div>
+
+      {/* BUDGET BREAKDOWN */}
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,padding:16,marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div className="label-sm">FY Budget Breakdown</div>
+          <div style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--muted)"}}>
+            Unallocated: <span style={{color:remainingBudget<0?"var(--red)":"var(--success)",fontWeight:600}}>{fmt(remainingBudget)}</span>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+          {[
+            { label: emp.subordinates.length>0 ? "Total Comp (You + Team)" : "Compensation",
+              val: totalComp, color:"var(--warning)",
+              note: emp.subordinates.length>0 ? `You: ${fmt(ownComp)} · Team: ${fmt(teamComp)}` : "pre-assigned" },
+            { label:"Team Project Budgets", val:subBudgets, color:"var(--blue)",
+              note: emp.subordinates.length>0 ? `${emp.subordinates.length} report${emp.subordinates.length>1?"s":""}` : "n/a" },
+            { label:"Own Projects & T&E",  val:calcProjectTotal(emp.projects)+calcTETotal(emp.te), color:"var(--success)" },
+            { label:"Total Committed",      val:totalCommitted, color:"var(--navy)" },
+          ].map(item=>(
+            <div key={item.label}>
+              <div className="label-sm">{item.label}</div>
+              <div className="mono" style={{fontSize:17,color:item.color,fontWeight:600}}>{fmt(item.val)}</div>
+              {item.note && <div style={{fontSize:9,color:"var(--muted)",marginTop:2,textTransform:"uppercase",letterSpacing:1}}>{item.note}</div>}
+              <div className="prog mt4">
+                <div className="prog-fill" style={{width:`${emp.budget>0?Math.min((item.val/emp.budget)*100,100):0}%`,background:item.color}} />
+              </div>
+              <div style={{fontSize:10,color:"var(--muted)",marginTop:2}}>{emp.budget>0?((item.val/emp.budget)*100).toFixed(1):0}% of budget</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ACCORDIONS */}
+      <Accordion icon="💰" title="My Budget" meta={`${fmt(emp.budget)} total`} defaultOpen>
+        <BudgetSection empId={empId} employees={employees} setEmployees={setEmployees} />
+      </Accordion>
+
+      <Accordion icon="📈" title="My Forecast" meta={`${fmt(forecast)} FY`}>
+        <ForecastSection empId={empId} employees={employees} setEmployees={setEmployees} currentUser={empId} />
+      </Accordion>
+
+      <Accordion icon="🗂" title="My Projects" meta={`${emp.projects.filter(p=>p.name).length} active`}>
+        <ProjectsSection empId={empId} employees={employees} setEmployees={setEmployees} />
+      </Accordion>
+
+      <Accordion icon="👥" title="My Team" meta={`${emp.subordinates.length} direct reports`}>
+        <TeamSection empId={empId} employees={employees} setEmployees={setEmployees} />
+      </Accordion>
+
+      <Accordion icon="✈️" title="My T&E" meta={`${fmt(calcTETotal(emp.te))}`}>
+        <TESection empId={empId} employees={employees} setEmployees={setEmployees} />
+      </Accordion>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DEPARTMENTS = [
+  {
+    key: "executive",
+    label: "Executive",
+    head: "jang",
+    members: ["jang"],
+    color: "var(--navy)",
+  },
+  {
+    key: "finance",
+    label: "Finance",
+    head: "mike",
+    members: ["mike","lauren","lola","james","natasha"],
+    color: "var(--blue)",
+  },
+  {
+    key: "hr",
+    label: "Human Resources",
+    head: "renee",
+    members: ["renee","brian","christopher","victoria","elizabeth","catherine"],
+    color: "#7B3FA0",
+  },
+  {
+    key: "it",
+    label: "Information Technology",
+    head: "monica",
+    members: ["monica","rick","nick","andrew","juliana"],
+    color: "#0A7C55",
+  },
+  {
+    key: "realestate",
+    label: "Real Estate",
+    head: "drew",
+    members: ["drew","jenna","emily","gracie","william"],
+    color: "#A05C00",
+  },
+];
+
+function HomePage({ employees, onSelect }) {
+  const [selected, setSelected] = useState("");
+  const [expandedDept, setExpandedDept] = useState(null);
+
+  // Total company = J'Ang $20M + each dept head's independent $20M = $100M
+  const totalBudget = ["jang","mike","renee","monica","drew"].reduce((s,id)=>s+(employees[id]?.budget||0),0);
+  // Total allocated = J'Ang own + each dept head's committed
+  // For each dept head: own comp + team comp (rolled up) + sub project budgets + own projects + own T&E
+  const jang = employees["jang"];
+  const jangOwn = calcOwnComp(jang) + calcProjectTotal(jang.projects) + calcTETotal(jang.te);
+  const totalAllocated = jang.subordinates.reduce((s, sid) => {
+    const e = employees[sid];
+    const ownComp = calcOwnComp(e);
+    const teamComp = e.subordinates.reduce((ts, gsid) => ts + getEffectiveComp(employees[gsid], e), 0);
+    const subProjBudgets = e.subordinates.reduce((ts, gsid) => ts + (employees[gsid]?.budget || 0), 0);
+    return s + ownComp + teamComp + subProjBudgets + calcProjectTotal(e.projects) + calcTETotal(e.te);
+  }, jangOwn);
+
+  return (
+    <div className="home">
+      <div className="home-hero">
+        <div className="home-eyebrow">The Reading Corp · Financial Command Center</div>
+        <div className="home-headline">MY <span>CFO</span></div>
+        <div className="home-sub">Select your profile to access your personalized financial dashboard</div>
+
+        {/* Company stats */}
+        <div style={{display:"flex",justifyContent:"center",gap:40,marginTop:28,marginBottom:40}}>
+          {[
+            {label:"Total Company Budget", val:fmt(totalBudget),     color:"var(--blue)"},
+            {label:"Total Allocated",       val:fmt(totalAllocated),  color:"var(--warning)"},
+            {label:"Total Employees",       val:DEPARTMENTS.reduce((s,d)=>s+d.members.length,0), color:"var(--success)"},
+          ].map(s=>(
+            <div key={s.label} style={{textAlign:"center"}}>
+              <div className="label-sm">{s.label}</div>
+              <div style={{fontFamily:"var(--display)",fontWeight:700,fontSize:30,color:s.color}}>{s.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick-access dropdown */}
+        <div className="home-select-wrap">
+          <div className="home-select-label">Quick Access — Select Employee</div>
+          <select className="home-select" value={selected} onChange={e=>setSelected(e.target.value)}>
+            <option value="">— Choose an employee —</option>
+            {DEPARTMENTS.map(dept=>(
+              <optgroup key={dept.key} label={dept.label}>
+                {dept.members.map(id=>(
+                  <option key={id} value={id}>{employees[id].name} · {employees[id].title}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button className="btn btn-red home-go-btn" disabled={!selected} onClick={()=>selected&&onSelect(selected)}>
+            LAUNCH DASHBOARD →
+          </button>
+        </div>
+      </div>
+
+      {/* Department cards with drill-down */}
+      <div className="label-sm" style={{marginBottom:16}}>Departments</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+        {DEPARTMENTS.map(dept=>{
+          const head = employees[dept.head];
+          const deptBudget = head.budget;
+          const headOwnComp = calcOwnComp(head);
+          const headTeamComp = head.subordinates.reduce((s,sid)=>s+getEffectiveComp(employees[sid],head),0);
+          const subProjBudgets = head.subordinates.reduce((s,sid)=>s+(employees[sid]?.budget||0),0);
+          const deptSpend = headOwnComp + headTeamComp + subProjBudgets + calcProjectTotal(head.projects) + calcTETotal(head.te);
+          const pct = deptBudget > 0 ? Math.min((deptSpend/deptBudget)*100,100) : 0;
+          const isOpen = expandedDept === dept.key;
+          return (
+            <div key={dept.key} style={{background:"var(--surface)",border:`1.5px solid ${isOpen ? dept.color : "var(--border)"}`,borderRadius:8,overflow:"hidden",transition:"border-color 0.15s,box-shadow 0.15s",boxShadow:isOpen?"0 4px 16px rgba(0,0,0,0.08)":"none"}}>
+              {/* Dept header */}
+              <div
+                onClick={()=>setExpandedDept(isOpen ? null : dept.key)}
+                style={{padding:"16px 18px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,borderBottom:isOpen?`1px solid var(--border)`:"none"}}
+              >
+                <div style={{width:4,height:40,borderRadius:2,background:dept.color,flexShrink:0}} />
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"var(--display)",fontWeight:700,fontSize:17,color:"var(--navy)"}}>{dept.label}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>Head: {head.name} · {dept.members.length} members</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontFamily:"var(--mono)",fontSize:13,color:dept.color,fontWeight:600}}>{fmt(deptBudget)}</div>
+                  <div style={{fontSize:10,color:"var(--muted)"}}>budget</div>
+                </div>
+                <div style={{color:"var(--muted)",fontSize:12,marginLeft:4}}>{isOpen?"▲":"▼"}</div>
+              </div>
+
+              {/* Progress bar always visible */}
+              <div style={{height:3,background:"var(--border)"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:dept.color,transition:"width 0.4s"}} />
+              </div>
+
+              {/* Expanded member list */}
+              {isOpen && (
+                <div style={{padding:"12px 18px"}}>
+                  {dept.members.map(id=>{
+                    const e = employees[id];
+                    const spend = calcSpend(e);
+                    return (
+                      <div
+                        key={id}
+                        onClick={()=>onSelect(id)}
+                        style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 10px",borderRadius:6,cursor:"pointer",transition:"background 0.1s",marginBottom:4}}
+                        onMouseEnter={ev=>ev.currentTarget.style.background="#EEF4FB"}
+                        onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}
+                      >
+                        <div>
+                          <div style={{fontWeight:600,fontSize:13,color:"var(--navy)"}}>{e.name}</div>
+                          <div style={{fontSize:11,color:"var(--muted)"}}>{e.title}</div>
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--blue)",fontWeight:600}}>{fmt(e.budget)}</div>
+                          <div style={{fontSize:10,color:"var(--muted)"}}>budget</div>
+                        </div>
+                        <div style={{color:"var(--blue)",fontSize:12,marginLeft:10}}>→</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP ROOT
+// ─────────────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = "mycfo-state-v1";
+
+function App() {
+  const [employees, setEmployees] = useState(initialEmployees);
+  const [currentEmp, setCurrentEmp] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(new Date());
+
+  // Load saved state on mount
+  useEffect(() => {
+    function load() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setEmployees(JSON.parse(saved));
+        }
+      } catch (_) {
+        // No saved state yet — use defaults
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const handleSave = () => {
+    setSaveStatus("saving");
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(employees));
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (_) {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  };
+
+  const handleReset = () => {
+    if (!window.confirm("Reset ALL data to defaults? This cannot be undone.")) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+    setEmployees(initialEmployees);
+    setCurrentEmp(null);
+  };
+
+  if (loading) {
+    return (
+      <div style={{minHeight:"100vh",background:"var(--navy)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontFamily:"Inter,sans-serif",fontSize:14,letterSpacing:2}}>
+        LOADING MY CFO…
+      </div>
+    );
+  }
+
+  const saveLabel = saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : saveStatus === "error" ? "Error!" : "Save";
+  const savePill = saveStatus === "saved" ? "pill-green" : saveStatus === "error" ? "pill-red" : null;
+
+  return (
+    <div className="app">
+      <style>{STYLES}</style>
+
+      {/* HEADER */}
+      <header className="hdr">
+        <div className="hdr-inner">
+          <div className="logo-mark">
+            <div className="logo-text">
+              The Reading<strong>Corp</strong>
+            </div>
+          </div>
+          <div className="hdr-divider"/>
+          <div className="hdr-title">MY <span>CFO</span></div>
+          <div className="hdr-right">
+            <div className="hdr-time">{now.toLocaleDateString()} · {now.toLocaleTimeString()}</div>
+            {savePill && <span className={`pill ${savePill}`}>{saveLabel}</span>}
+            <button className="btn btn-outline btn-sm" onClick={handleSave} disabled={saveStatus==="saving"}>{saveStatus==="saving"?"Saving…":"Save"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={handleReset}>Reset</button>
+            {currentEmp && (
+              <button className="btn btn-red btn-sm" onClick={()=>setCurrentEmp(null)}>⌂ Home</button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* CONTENT */}
+      {!currentEmp ? (
+        <HomePage employees={employees} onSelect={setCurrentEmp} />
+      ) : (
+        <EmployeeDashboard
+          empId={currentEmp}
+          employees={employees}
+          setEmployees={setEmployees}
+          onBack={()=>setCurrentEmp(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
